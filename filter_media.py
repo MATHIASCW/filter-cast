@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from media_commands import command_path, download_media, process_media, probe_media
+from media_commands import command_path, download_media, process_media, probe_media, separate_audio
 from media_config import MODES
 from media_service import choose_audio_stream, list_audio_tracks, media_files, output_path
 
@@ -20,6 +20,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--list-audio", action="store_true")
     parser.add_argument("--download", metavar="URL")
     parser.add_argument("--download-mode", choices=MODES, default="both")
+    parser.add_argument(
+        "--separate",
+        choices=("vocals", "no_vocals", "all"),
+        help="sépare la voix et l'accompagnement avec Demucs",
+    )
+    parser.add_argument("--demucs-model", default="htdemucs", help="modèle Demucs")
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument(
         "--ffmpeg-location",
         metavar="DOSSIER",
@@ -60,6 +67,21 @@ def main() -> int:
                 command_path("yt-dlp"),
                 args.ffmpeg_location,
             )
+        if args.separate:
+            args.output.mkdir(parents=True, exist_ok=True)
+            ffmpeg_path = command_path("ffmpeg", args.ffmpeg_location)
+            ffmpeg_location = str(Path(ffmpeg_path).parent)
+            for source in media_files(args.input):
+                separate_audio(
+                    source,
+                    args.output,
+                    args.separate,
+                    sys.executable,
+                    args.demucs_model,
+                    args.device,
+                    ffmpeg_location,
+                )
+            return 0
         ffprobe = command_path("ffprobe", args.ffmpeg_location)
         if args.list_audio:
             return list_audio_tracks(args.input, ffprobe)

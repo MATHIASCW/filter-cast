@@ -35,8 +35,19 @@ def command_path(name: str, location: str | None = None) -> str:
     return path
 
 
-def run_command(command: list[str], error_message: str, capture_output: bool = True) -> str:
-    result = subprocess.run(command, capture_output=capture_output, text=True, check=False)
+def run_command(
+    command: list[str],
+    error_message: str,
+    capture_output: bool = True,
+    environment: dict[str, str] | None = None,
+) -> str:
+    result = subprocess.run(
+        command,
+        capture_output=capture_output,
+        text=True,
+        check=False,
+        env=environment,
+    )
     if result.returncode == 0:
         return result.stdout or ""
     details = (result.stderr or "").strip().splitlines()
@@ -93,3 +104,35 @@ def process_media(source: Path, destination: Path, mode: str, selected_audio_ind
     command += stream_mapping(mode, selected_audio_index) + [str(destination)]
     run_command(command, "FFmpeg a échoué")
     print(f"OK  {source.name} -> {destination.name}")
+
+
+def separate_audio(
+    source: Path,
+    output_dir: Path,
+    stem: str,
+    python_executable: str,
+    model: str = "htdemucs",
+    device: str = "auto",
+    ffmpeg_location: str | None = None,
+) -> None:
+    destination = output_dir / "separated"
+    command = [
+        python_executable,
+        "-m",
+        "demucs.separate",
+        "-n",
+        model,
+        "-o",
+        str(destination),
+    ]
+    if stem in {"vocals", "no_vocals"}:
+        command += ["--two-stems=vocals"]
+    if device != "auto":
+        command += ["--device", device]
+    command.append(str(source))
+    environment = None
+    if ffmpeg_location:
+        environment = os.environ.copy()
+        environment["PATH"] = f"{ffmpeg_location}{os.pathsep}{environment.get('PATH', '')}"
+    run_command(command, "Demucs a échoué", capture_output=False, environment=environment)
+    print(f"OK  séparation audio -> {destination / model / source.stem}")

@@ -64,6 +64,31 @@ python filter_media.py --input mes-videos --output exports --mode audio
 
 Le traitement utilise `-c copy` : les flux sélectionnés ne sont pas réencodés, ce qui est rapide et évite une perte de qualité. Les fichiers portant les extensions vidéo/audio courantes sont traités automatiquement.
 
+## Séparer la voix avec Demucs
+
+Demucs est optionnel et fonctionne localement. Il n'y a pas de coût d'API, mais le premier lancement télécharge le modèle et le calcul consomme du CPU ou du GPU.
+
+Installation :
+
+```powershell
+python -m pip install -U demucs
+```
+
+Séparer la voix de l'accompagnement :
+
+```powershell
+python filter_media.py --input input --output output --separate vocals --device cuda
+```
+
+Le même calcul peut être demandé pour récupérer l'accompagnement (`no_vocals`) ou les quatre stems (`all`) :
+
+```powershell
+python filter_media.py --separate no_vocals --device cuda
+python filter_media.py --separate all --device cuda
+```
+
+Les résultats sont dans `output/separated/htdemucs/<nom-du-fichier>/`. Avec `--device cpu`, Demucs fonctionne sans carte graphique, mais plus lentement. Le modèle sépare principalement la voix et l'accompagnement ; il ne garantit pas une séparation parfaite entre voix parlée, bruit de fond et musique.
+
 ## Télécharger depuis une URL
 
 Télécharger puis traiter une vidéo dans `input/` :
