@@ -30,8 +30,8 @@ def command_path(name: str, location: str | None = None) -> str:
             if installed_location:
                 path = command_path(name, installed_location)
     if path is None:
-        suffix = f" dans {location}" if location else " dans le PATH"
-        raise RuntimeError(f"{name} est introuvable{suffix}.")
+        suffix = f" in {location}" if location else " in PATH"
+        raise RuntimeError(f"{name} was not found{suffix}.")
     return path
 
 
@@ -76,8 +76,8 @@ def download_media(
     if ffmpeg_location:
         command += ["--ffmpeg-location", ffmpeg_location]
     command += download_options(download_mode) + [url]
-    run_command(command, "le téléchargement a échoué", capture_output=False)
-    print(f"Téléchargement terminé dans {input_dir}")
+    run_command(command, "download failed", capture_output=False)
+    print(f"Download complete in {input_dir}")
 
 
 def probe_media(ffprobe: str, source: Path) -> dict:
@@ -86,7 +86,7 @@ def probe_media(ffprobe: str, source: Path) -> dict:
         "-show_entries", "stream=index,codec_type:stream_tags=language,title,handler_name",
         "-of", "json", str(source),
     ]
-    return json.loads(run_command(command, "fichier média illisible"))
+    return json.loads(run_command(command, "media file is unreadable"))
 
 
 def stream_mapping(mode: str, selected_audio_index: int | None) -> list[str]:
@@ -102,7 +102,7 @@ def stream_mapping(mode: str, selected_audio_index: int | None) -> list[str]:
 def process_media(source: Path, destination: Path, mode: str, selected_audio_index: int | None, ffmpeg: str) -> None:
     command = [ffmpeg, "-y", "-i", str(source)]
     command += stream_mapping(mode, selected_audio_index) + [str(destination)]
-    run_command(command, "FFmpeg a échoué")
+    run_command(command, "FFmpeg failed")
     print(f"OK  {source.name} -> {destination.name}")
 
 
@@ -134,5 +134,5 @@ def separate_audio(
     if ffmpeg_location:
         environment = os.environ.copy()
         environment["PATH"] = f"{ffmpeg_location}{os.pathsep}{environment.get('PATH', '')}"
-    run_command(command, "Demucs a échoué", capture_output=False, environment=environment)
-    print(f"OK  séparation audio -> {destination / model / source.stem}")
+    run_command(command, "Demucs failed", capture_output=False, environment=environment)
+    print(f"OK  voice separation -> {destination / model / source.stem}")

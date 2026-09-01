@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Filter Cast</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar"><div class="mark">FC</div><div><p class="kicker">LOCAL MEDIA LAB</p><h1>Filter Cast</h1></div><span class="status">LOCAL ONLY</span></header>
+    <section class="intro"><p class="eyebrow">Audio / video toolkit</p><h2>Give your media a new shape.</h2><p>Drop a file or paste a URL. Processing stays on this machine.</p></section>
+    <form id="media-form" class="workspace">
+      <section class="panel source-panel"><div class="panel-head"><span>01</span><h3>Source</h3></div><label class="dropzone" id="dropzone"><input id="media" name="media" type="file" accept="audio/*,video/*"><strong>Drop your file here</strong><small>MP4, MKV, MOV, MP3, M4A, WAV...</small><em id="filename">No file selected</em></label><div class="or"><span>or</span></div><label>Media URL<input name="url" type="url" placeholder="https://..." autocomplete="off"></label></section>
+      <section class="panel settings-panel"><div class="panel-head"><span>02</span><h3>Processing</h3></div><label>Output<select name="mode"><option value="both">Audio + video</option><option value="audio">Audio only</option><option value="video">Video only</option></select></label><div class="two-col"><label>Audio index<input name="audioIndex" type="number" min="0" placeholder="0"></label><label>Language<input name="language" placeholder="fr / en"></label></div><label>Track title<input name="title" placeholder="voice, music..." autocomplete="off"></label><div class="separator"><div><strong>AI separation</strong><small>Voice / accompaniment with Demucs</small></div><label class="switch"><input id="separate" name="separate" value="vocals" type="checkbox"><span></span></label></div><div class="two-col hidden" id="ai-options"><label>Result<select name="aiStem"><option value="vocals">Vocals</option><option value="no_vocals">Accompaniment</option><option value="all">All stems</option></select></label><label>Compute<select name="device"><option value="auto">Auto</option><option value="cuda">CUDA GPU</option><option value="cpu">CPU</option></select></label></div><button type="submit" id="submit"><span>Process media</span><b>→</b></button><p class="note">No file is sent to a remote server.</p></section>
+    </form>
+    <section class="results panel"><div class="panel-head"><span>03</span><h3>Results</h3><button type="button" id="refresh">Refresh</button></div><div id="message" class="message">Generated files will appear here.</div><div id="files" class="files"></div></section>
+  </main><script src="/app.js"></script>
+</body>
+</html>

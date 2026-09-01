@@ -10,7 +10,7 @@ from media_service import choose_audio_stream, list_audio_tracks, media_files, o
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Filtre les flux audio et vidéo des fichiers placés dans input/.")
+    parser = argparse.ArgumentParser(description="Filter audio and video streams from files placed in input/.")
     parser.add_argument("--input", type=Path, default=Path("input"))
     parser.add_argument("--output", type=Path, default=Path("output"))
     parser.add_argument("--mode", choices=MODES)
@@ -23,14 +23,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--separate",
         choices=("vocals", "no_vocals", "all"),
-        help="sépare la voix et l'accompagnement avec Demucs",
+        help="separate vocals and accompaniment with Demucs",
     )
-    parser.add_argument("--demucs-model", default="htdemucs", help="modèle Demucs")
+    parser.add_argument("--demucs-model", default="htdemucs", help="Demucs model")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument(
         "--ffmpeg-location",
-        metavar="DOSSIER",
-        help="dossier contenant ffmpeg.exe et ffprobe.exe",
+        metavar="FOLDER",
+        help="folder containing ffmpeg.exe and ffprobe.exe",
     )
     return parser.parse_args()
 
@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
 def process_files(args: argparse.Namespace, ffmpeg: str, ffprobe: str, mode: str) -> int:
     files = media_files(args.input)
     if not files:
-        print(f"Aucun fichier média dans {args.input}")
+        print(f"No media files in {args.input}")
         return 0
     args.output.mkdir(parents=True, exist_ok=True)
     for source in files:
@@ -56,7 +56,7 @@ def main() -> int:
         if args.download:
             args.input.mkdir(parents=True, exist_ok=True)
         else:
-            print(f"Erreur : le dossier d'entrée n'existe pas : {args.input}", file=sys.stderr)
+            print(f"Error: input folder does not exist: {args.input}", file=sys.stderr)
             return 2
     try:
         if args.download:
@@ -88,7 +88,7 @@ def main() -> int:
         mode = args.mode or (args.download_mode if args.download else "both")
         return process_files(args, command_path("ffmpeg", args.ffmpeg_location), ffprobe, mode)
     except (RuntimeError, ValueError) as error:
-        print(f"Erreur : {error}", file=sys.stderr)
+        print(f"Error: {error}", file=sys.stderr)
         return 1
 
 
