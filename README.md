@@ -1,126 +1,126 @@
 # Filter Cast
 
-Petit outil en ligne de commande pour extraire ou conserver les flux audio et vidéo d'une vidéo avec FFmpeg.
+A small command-line tool to extract or keep the audio and video streams of a video using FFmpeg.
 
-Le code est séparé par responsabilité :
+The code is split by responsibility:
 
-- `filter_media.py` : interface CLI et orchestration
-- `media_commands.py` : appels à `yt-dlp`, `ffprobe` et `ffmpeg`
-- `media_service.py` : recherche et sélection des pistes
-- `media_config.py` : extensions et modes acceptés
-- `test_filter_media.py` : tests unitaires
+- `filter_media.py`: CLI interface and orchestration
+- `media_commands.py`: calls to `yt-dlp`, `ffprobe`, and `ffmpeg`
+- `media_service.py`: track lookup and selection
+- `media_config.py`: accepted extensions and modes
+- `test_filter_media.py`: unit tests
 
-## Pré-requis
+## Requirements
 
-- Python 3.10 ou plus récent
-- FFmpeg installé et disponible dans le `PATH` (`ffmpeg` et `ffprobe`)
-- `yt-dlp` installé et disponible dans le `PATH` pour le téléchargement
+- Python 3.10 or newer
+- FFmpeg installed and available on the `PATH` (`ffmpeg` and `ffprobe`)
+- `yt-dlp` installed and available on the `PATH` for downloading
 
-Sous Windows, avec `winget` :
+On Windows, with `winget`:
 
 ```powershell
 winget install Gyan.FFmpeg.Shared
 python -m pip install -U yt-dlp
 ```
 
-## Utilisation
+## Usage
 
-Placez les vidéos dans le dossier `input`, puis lancez :
+Place your videos in the `input` folder, then run:
 
 ```powershell
 python filter_media.py
 ```
 
-Le résultat est créé dans `output`. Par défaut, l'outil conserve la première piste vidéo et la première piste audio.
+The result is created in `output`. By default, the tool keeps the first video track and the first audio track.
 
-Choisir uniquement l'audio ou uniquement la vidéo :
+Keep only audio or only video:
 
 ```powershell
 python filter_media.py --mode audio
 python filter_media.py --mode video
 ```
 
-Afficher les pistes audio disponibles et leurs métadonnées :
+List available audio tracks and their metadata:
 
 ```powershell
 python filter_media.py --list-audio
 ```
 
-Sélectionner une piste audio particulière :
+Select a specific audio track:
 
 ```powershell
 python filter_media.py --mode audio --audio-index 2
 python filter_media.py --mode both --language fr
-python filter_media.py --mode audio --title musique
+python filter_media.py --mode audio --title music
 ```
 
-`--audio-index` est numéroté à partir de `0` et correspond à l'index affiché par `--list-audio`. `--language` recherche une langue exacte (`fr`, `en`, etc.) ; `--title` recherche un mot dans le titre ou le nom de la piste. Ces filtres peuvent être combinés.
+`--audio-index` is zero-based and matches the index shown by `--list-audio`. `--language` looks for an exact language match (`fr`, `en`, etc.); `--title` searches for a word in the track's title or name. These filters can be combined.
 
-Utiliser d'autres dossiers :
+Use different folders:
 
 ```powershell
-python filter_media.py --input mes-videos --output exports --mode audio
+python filter_media.py --input my-videos --output exports --mode audio
 ```
 
-Le traitement utilise `-c copy` : les flux sélectionnés ne sont pas réencodés, ce qui est rapide et évite une perte de qualité. Les fichiers portant les extensions vidéo/audio courantes sont traités automatiquement.
+Processing uses `-c copy`: the selected streams are not re-encoded, which is fast and avoids any quality loss. Files with common video/audio extensions are processed automatically.
 
-## Séparer la voix avec Demucs
+## Separating vocals with Demucs
 
-Demucs est optionnel et fonctionne localement. Il n'y a pas de coût d'API, mais le premier lancement télécharge le modèle et le calcul consomme du CPU ou du GPU.
+Demucs is optional and runs locally. There's no API cost, but the first run downloads the model and the computation uses CPU or GPU resources.
 
-Installation :
+Installation:
 
 ```powershell
 python -m pip install -U demucs
 ```
 
-Séparer la voix de l'accompagnement :
+Separate vocals from the accompaniment:
 
 ```powershell
 python filter_media.py --input input --output output --separate vocals --device cuda
 ```
 
-Le même calcul peut être demandé pour récupérer l'accompagnement (`no_vocals`) ou les quatre stems (`all`) :
+The same process can be used to get the accompaniment (`no_vocals`) or all four stems (`all`):
 
 ```powershell
 python filter_media.py --separate no_vocals --device cuda
 python filter_media.py --separate all --device cuda
 ```
 
-Les résultats sont dans `output/separated/htdemucs/<nom-du-fichier>/`. Avec `--device cpu`, Demucs fonctionne sans carte graphique, mais plus lentement. Le modèle sépare principalement la voix et l'accompagnement ; il ne garantit pas une séparation parfaite entre voix parlée, bruit de fond et musique.
+Results are placed in `output/separated/htdemucs/<file-name>/`. With `--device cpu`, Demucs runs without a graphics card, but more slowly. The model mainly separates vocals from accompaniment; it doesn't guarantee a perfect split between speech, background noise, and music.
 
-## Télécharger depuis une URL
+## Downloading from a URL
 
-Télécharger puis traiter une vidéo dans `input/` :
-
-```powershell
-python filter_media.py --download "https://exemple.com/video" --download-mode both
-```
-
-Télécharger uniquement l'audio ou uniquement la vidéo :
+Download and then process a video into `input/`:
 
 ```powershell
-python filter_media.py --download "https://exemple.com/video" --download-mode audio
-python filter_media.py --download "https://exemple.com/video" --download-mode video
+python filter_media.py --download "https://example.com/video" --download-mode both
 ```
 
-Si PowerShell ne reconnaît pas encore FFmpeg après son installation, indiquez directement son dossier :
+Download only the audio or only the video:
 
 ```powershell
-python filter_media.py --ffmpeg-location "C:\chemin\vers\ffmpeg\bin" --download "URL" --download-mode audio
+python filter_media.py --download "https://example.com/video" --download-mode audio
+python filter_media.py --download "https://example.com/video" --download-mode video
 ```
 
-Après le téléchargement, le fichier est traité selon `--mode` et le résultat est placé dans `output/`. Par exemple, pour télécharger puis extraire une piste audio française :
+If PowerShell doesn't recognize FFmpeg yet after installing it, point directly to its folder:
 
 ```powershell
-python filter_media.py --download "https://exemple.com/video" --download-mode both --mode audio --language fr
+python filter_media.py --ffmpeg-location "C:\path\to\ffmpeg\bin" --download "URL" --download-mode audio
 ```
 
-Utilisez uniquement des contenus que vous avez le droit de télécharger et de traiter.
+After downloading, the file is processed according to `--mode` and the result is placed in `output/`. For example, to download a video and then extract its French audio track:
+
+```powershell
+python filter_media.py --download "https://example.com/video" --download-mode both --mode audio --language fr
+```
+
+Only use content you have the right to download and process.
 
 ## Tests
 
-Lancer les tests unitaires :
+Run the unit tests:
 
 ```powershell
 python -m unittest -v
