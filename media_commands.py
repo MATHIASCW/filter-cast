@@ -89,19 +89,21 @@ def probe_media(ffprobe: str, source: Path) -> dict:
     return json.loads(run_command(command, "media file is unreadable"))
 
 
-def stream_mapping(mode: str, selected_audio_index: int | None) -> list[str]:
+def stream_mapping(mode: str, selected_audio_index: int | None, has_video: bool = True) -> list[str]:
     audio_map = f"0:{selected_audio_index}" if selected_audio_index is not None else "0:a:0"
+    if mode == "both" and not has_video:
+        mode = "audio"
     mappings = {
-        "audio": ["-map", audio_map, "-vn", "-c:a", "copy"],
+        "audio": ["-map", audio_map, "-vn", "-c:a", "aac"],
         "video": ["-map", "0:v:0", "-an", "-c:v", "copy"],
-        "both": ["-map", "0:v:0", "-map", audio_map, "-c", "copy"],
+        "both": ["-map", "0:v:0", "-map", audio_map, "-c:v", "copy", "-c:a", "aac"],
     }
     return mappings[mode]
 
 
-def process_media(source: Path, destination: Path, mode: str, selected_audio_index: int | None, ffmpeg: str) -> None:
+def process_media(source: Path, destination: Path, mode: str, selected_audio_index: int | None, ffmpeg: str, has_video: bool = True) -> None:
     command = [ffmpeg, "-y", "-i", str(source)]
-    command += stream_mapping(mode, selected_audio_index) + [str(destination)]
+    command += stream_mapping(mode, selected_audio_index, has_video) + [str(destination)]
     run_command(command, "FFmpeg failed")
     print(f"OK  {source.name} -> {destination.name}")
 

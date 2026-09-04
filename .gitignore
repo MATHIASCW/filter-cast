@@ -6,3 +6,4 @@ input/*
 .pytest_cache/
 web/bin/
 web/obj/
+*.wav

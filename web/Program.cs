@@ -5,10 +5,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 500L * 1024 * 1024);
 var app = builder.Build();
 
-var projectRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, ".."));
+var projectRoot = Directory.GetParent(app.Environment.ContentRootPath)?.FullName ?? throw new InvalidOperationException("Cannot determine project root.");
 var inputDirectory = Path.Combine(projectRoot, "input");
 var outputDirectory = Path.Combine(projectRoot, "output");
 var scriptPath = Path.Combine(projectRoot, "filter_media.py");
+
+if (!File.Exists(scriptPath))
+	throw new InvalidOperationException($"filter_media.py not found at: {scriptPath}");
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -74,11 +77,24 @@ app.Run("http://127.0.0.1:5080");
 
 static async Task<(int ExitCode, string Output)> RunPythonAsync(List<string> arguments, string workingDirectory, CancellationToken cancellationToken)
 {
-	var startInfo = new ProcessStartInfo("python") { WorkingDirectory = workingDirectory, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
-	foreach (var argument in arguments) startInfo.ArgumentList.Add(argument);
-	using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Python est introuvable.");
+	var startInfo = new ProcessStartInfo("python")
+	{
+		WorkingDirectory = workingDirectory,
+		RedirectStandardOutput = true,
+		RedirectStandardError = true,
+		UseShellExecute = false,
+		CreateNoWindow = true
+	};
+	foreach (var argument in arguments)
+		startInfo.ArgumentList.Add(argument);
+	
+	using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Python not found.");
 	var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
 	var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
 	await process.WaitForExitAsync(cancellationToken);
-	return (process.ExitCode, (await outputTask) + (await errorTask));
+	
+	var stdout = await outputTask;
+	var stderr = await errorTask;
+	var output = (stdout + stderr).Trim();
+	return (process.ExitCode, output);
 }

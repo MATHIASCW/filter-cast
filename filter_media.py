@@ -46,7 +46,8 @@ def process_files(args: argparse.Namespace, ffmpeg: str, ffprobe: str, mode: str
         selected_index = selected_number = None
         if mode in {"audio", "both"} and (args.audio_index is not None or args.language or args.title):
             selected_index, selected_number = choose_audio_stream(streams, args.audio_index, args.language, args.title)
-        process_media(source, output_path(source, args.output, mode, selected_number), mode, selected_index, ffmpeg)
+        has_video = any(s.get("codec_type") == "video" for s in streams)
+        process_media(source, output_path(source, args.output, mode, selected_number), mode, selected_index, ffmpeg, has_video)
     return 0
 
 
