@@ -19,7 +19,10 @@ class MediaTests(unittest.TestCase):
         self.assertIn("--merge-output-format", download_options("both"))
 
     def test_stream_mapping_selects_requested_audio(self):
-        self.assertEqual(stream_mapping("both", 3), ["-map", "0:v:0", "-map", "0:3", "-c", "copy"])
+        self.assertEqual(
+            stream_mapping("both", 3),
+            ["-map", "0:v:0", "-map", "0:3", "-c:v", "copy", "-c:a", "aac"],
+        )
 
     def test_separate_audio_builds_a_demucs_command(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,3 +1,11 @@
 output/*
 input/*
 *pycache*
+*.pyc
+.venv/
+.pytest_cache/
+web/bin/
+web/obj/
+*.wav
+*obj/
+*bin/

@@ -1,39 +1,53 @@
 # Filter Cast
 
-A small command-line tool to extract or keep the audio and video streams of a video using FFmpeg.
+A small command-line tool to extract or preserve audio and video streams from media with FFmpeg.
 
-The code is split by responsibility:
+## .NET Web Interface
+
+A local ASP.NET Core interface is available in `web/`. It lets you choose a file or URL, output mode, audio track, and Demucs voice separation.
+
+Run the interface from the project root:
+
+```powershell
+dotnet run --project web/web.csproj --no-launch-profile
+```
+
+Then open [http://127.0.0.1:5080](http://127.0.0.1:5080). The address `127.0.0.1` limits access to the local machine. Uploaded files are stored in `input/` and results in `output/`, both ignored by Git.
+
+The interface calls the Python script without a system shell, using separate arguments. It limits uploads to 500 MB, generates a random filename, and only accepts HTTP/HTTPS URLs. This is not an interface meant to be exposed directly on the internet. For public deployment, you would need to add authentication, HTTPS, quotas, file cleanup, and CSRF protection.
+
+The code is separated by responsibility:
 
 - `filter_media.py`: CLI interface and orchestration
 - `media_commands.py`: calls to `yt-dlp`, `ffprobe`, and `ffmpeg`
-- `media_service.py`: track lookup and selection
-- `media_config.py`: accepted extensions and modes
+- `media_service.py`: track discovery and selection
+- `media_config.py`: supported extensions and modes
 - `test_filter_media.py`: unit tests
 
 ## Requirements
 
-- Python 3.10 or newer
-- FFmpeg installed and available on the `PATH` (`ffmpeg` and `ffprobe`)
-- `yt-dlp` installed and available on the `PATH` for downloading
+- Python 3.10 or later
+- FFmpeg installed and available in `PATH` (`ffmpeg` and `ffprobe`)
+- `yt-dlp` installed and available in `PATH` for downloads
 
-On Windows, with `winget`:
+On Windows, using `winget`:
 
 ```powershell
 winget install Gyan.FFmpeg.Shared
-python -m pip install -U yt-dlp
+python -m pip install -r requirements.txt
 ```
 
 ## Usage
 
-Place your videos in the `input` folder, then run:
+Place media files in the `input` folder, then run:
 
 ```powershell
 python filter_media.py
 ```
 
-The result is created in `output`. By default, the tool keeps the first video track and the first audio track.
+The result is created in `output`. By default, the tool preserves the first video track and the first audio track.
 
-Keep only audio or only video:
+Extract audio only or video only:
 
 ```powershell
 python filter_media.py --mode audio
@@ -54,7 +68,7 @@ python filter_media.py --mode both --language fr
 python filter_media.py --mode audio --title music
 ```
 
-`--audio-index` is zero-based and matches the index shown by `--list-audio`. `--language` looks for an exact language match (`fr`, `en`, etc.); `--title` searches for a word in the track's title or name. These filters can be combined.
+`--audio-index` is zero-indexed and matches the index shown by `--list-audio`. `--language` searches for an exact language code (`fr`, `en`, etc.); `--title` searches for a word in the track title or handler name. These filters can be combined.
 
 Use different folders:
 
@@ -62,11 +76,11 @@ Use different folders:
 python filter_media.py --input my-videos --output exports --mode audio
 ```
 
-Processing uses `-c copy`: the selected streams are not re-encoded, which is fast and avoids any quality loss. Files with common video/audio extensions are processed automatically.
+Processing uses `-c copy`: selected streams are not re-encoded, which is fast and preserves quality. Files with common audio/video extensions are processed automatically.
 
-## Separating vocals with Demucs
+## Separate Voice with Demucs
 
-Demucs is optional and runs locally. There's no API cost, but the first run downloads the model and the computation uses CPU or GPU resources.
+Demucs is optional and runs locally. There is no API cost, but the first run downloads the model and computation uses CPU or GPU.
 
 Installation:
 
@@ -74,53 +88,53 @@ Installation:
 python -m pip install -U demucs
 ```
 
-Separate vocals from the accompaniment:
+Separate vocals from accompaniment:
 
 ```powershell
 python filter_media.py --input input --output output --separate vocals --device cuda
 ```
 
-The same process can be used to get the accompaniment (`no_vocals`) or all four stems (`all`):
+The same computation can be used to extract accompaniment (`no_vocals`) or all stems (`all`):
 
 ```powershell
 python filter_media.py --separate no_vocals --device cuda
 python filter_media.py --separate all --device cuda
 ```
 
-Results are placed in `output/separated/htdemucs/<file-name>/`. With `--device cpu`, Demucs runs without a graphics card, but more slowly. The model mainly separates vocals from accompaniment; it doesn't guarantee a perfect split between speech, background noise, and music.
+Results are in `output/separated/htdemucs/<filename>/`. With `--device cpu`, Demucs runs without a GPU but more slowly. The model primarily separates vocals and accompaniment; it does not guarantee perfect separation between speech, background noise, and music.
 
-## Downloading from a URL
+## Download from a URL
 
-Download and then process a video into `input/`:
+Download and then process a media file into `input/`:
 
 ```powershell
 python filter_media.py --download "https://example.com/video" --download-mode both
 ```
 
-Download only the audio or only the video:
+Download audio only or video only:
 
 ```powershell
 python filter_media.py --download "https://example.com/video" --download-mode audio
 python filter_media.py --download "https://example.com/video" --download-mode video
 ```
 
-If PowerShell doesn't recognize FFmpeg yet after installing it, point directly to its folder:
+If PowerShell does not yet recognize FFmpeg after installation, specify its folder directly:
 
 ```powershell
 python filter_media.py --ffmpeg-location "C:\path\to\ffmpeg\bin" --download "URL" --download-mode audio
 ```
 
-After downloading, the file is processed according to `--mode` and the result is placed in `output/`. For example, to download a video and then extract its French audio track:
+After download, the file is processed according to `--mode` and the result is placed in `output/`. For example, to download and extract a French audio track:
 
 ```powershell
 python filter_media.py --download "https://example.com/video" --download-mode both --mode audio --language fr
 ```
 
-Only use content you have the right to download and process.
+Only download and process content you have the right to use.
 
 ## Tests
 
-Run the unit tests:
+Run unit tests:
 
 ```powershell
 python -m unittest -v
