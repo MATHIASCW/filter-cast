@@ -24,6 +24,7 @@ app.MapPost("/api/process", async (HttpRequest request, CancellationToken cancel
 	var language = form["language"].ToString();
 	var title = form["title"].ToString();
 	var separate = form["separate"].ToString();
+	var aiStem = form["aiStem"].ToString();
 	var device = form["device"].ToString();
 	var url = form["url"].ToString();
 	var upload = form.Files.GetFile("media");
@@ -51,7 +52,7 @@ app.MapPost("/api/process", async (HttpRequest request, CancellationToken cancel
 	if (int.TryParse(audioIndex, out var index) && index >= 0) arguments.AddRange(["--audio-index", index.ToString()]);
 	if (!string.IsNullOrWhiteSpace(language)) arguments.AddRange(["--language", language]);
 	if (!string.IsNullOrWhiteSpace(title)) arguments.AddRange(["--title", title]);
-	if (!string.IsNullOrWhiteSpace(separate)) arguments.AddRange(["--separate", separate, "--device", string.IsNullOrWhiteSpace(device) ? "auto" : device]);
+	if (!string.IsNullOrWhiteSpace(separate)) arguments.AddRange(["--separate", string.IsNullOrWhiteSpace(aiStem) ? "vocals" : aiStem, "--device", string.IsNullOrWhiteSpace(device) ? "auto" : device]);
 
 	var result = await RunPythonAsync(arguments, projectRoot, cancellationToken);
 	return result.ExitCode == 0
@@ -85,6 +86,7 @@ static async Task<(int ExitCode, string Output)> RunPythonAsync(List<string> arg
 		UseShellExecute = false,
 		CreateNoWindow = true
 	};
+	startInfo.EnvironmentVariables["PYTHONUTF8"] = "1";
 	foreach (var argument in arguments)
 		startInfo.ArgumentList.Add(argument);
 	
@@ -98,3 +100,5 @@ static async Task<(int ExitCode, string Output)> RunPythonAsync(List<string> arg
 	var output = (stdout + stderr).Trim();
 	return (process.ExitCode, output);
 }
+
+public partial class Program { }

@@ -34,7 +34,7 @@ On Windows, using `winget`:
 
 ```powershell
 winget install Gyan.FFmpeg.Shared
-python -m pip install -U yt-dlp
+python -m pip install -r requirements.txt
 ```
 
 ## Usage

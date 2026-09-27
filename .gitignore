@@ -7,3 +7,5 @@ input/*
 web/bin/
 web/obj/
 *.wav
+*obj/
+*bin/

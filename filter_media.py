@@ -41,14 +41,19 @@ def process_files(args: argparse.Namespace, ffmpeg: str, ffprobe: str, mode: str
         print(f"No media files in {args.input}")
         return 0
     args.output.mkdir(parents=True, exist_ok=True)
+    had_error = False
     for source in files:
-        streams = probe_media(ffprobe, source).get("streams", [])
-        selected_index = selected_number = None
-        if mode in {"audio", "both"} and (args.audio_index is not None or args.language or args.title):
-            selected_index, selected_number = choose_audio_stream(streams, args.audio_index, args.language, args.title)
-        has_video = any(s.get("codec_type") == "video" for s in streams)
-        process_media(source, output_path(source, args.output, mode, selected_number), mode, selected_index, ffmpeg, has_video)
-    return 0
+        try:
+            streams = probe_media(ffprobe, source).get("streams", [])
+            selected_index = selected_number = None
+            if mode in {"audio", "both"} and (args.audio_index is not None or args.language or args.title):
+                selected_index, selected_number = choose_audio_stream(streams, args.audio_index, args.language, args.title)
+            has_video = any(s.get("codec_type") == "video" for s in streams)
+            process_media(source, output_path(source, args.output, mode, selected_number), mode, selected_index, ffmpeg, has_video)
+        except (RuntimeError, ValueError) as error:
+            had_error = True
+            print(f"Error: {source.name}: {error}", file=sys.stderr)
+    return 1 if had_error else 0
 
 
 def main() -> int:
