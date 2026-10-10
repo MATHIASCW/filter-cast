@@ -1,12 +1,48 @@
 const form = document.querySelector('#media-form');
 const separate = document.querySelector('#separate');
 const aiOptions = document.querySelector('#ai-options');
+const streamOptions = document.querySelector('#stream-options');
+const trackField = document.querySelector('#track-field');
+const audioTrack = document.querySelector('#audio-track');
 const fileInput = document.querySelector('#media');
 const filename = document.querySelector('#filename');
 const message = document.querySelector('#message');
 const files = document.querySelector('#files');
-separate.addEventListener('change', () => aiOptions.classList.toggle('hidden', !separate.checked));
-fileInput.addEventListener('change', () => { filename.textContent = fileInput.files[0]?.name || 'No file selected'; });
+let probeId = 0;
+
+separate.addEventListener('change', () => {
+  aiOptions.classList.toggle('hidden', !separate.checked);
+  streamOptions.disabled = separate.checked;
+});
+
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0];
+  filename.textContent = file?.name || 'No file selected';
+  await loadAudioTracks(file);
+});
+
+async function loadAudioTracks(file) {
+  const currentProbe = ++probeId;
+  audioTrack.innerHTML = '';
+  trackField.classList.add('hidden');
+  if (!file) return;
+  try {
+    const body = new FormData();
+    body.append('media', file);
+    const response = await fetch('/api/probe', { method: 'POST', body });
+    if (!response.ok || currentProbe !== probeId) return;
+    const tracks = await response.json();
+    if (tracks.length < 2) return;
+    audioTrack.innerHTML = tracks.map(track => `<option value="${track.index}">${escapeHtml(trackLabel(track))}</option>`).join('');
+    trackField.classList.remove('hidden');
+  } catch { /* no track list: the first audio track is used */ }
+}
+
+function trackLabel(track) {
+  const details = [track.language, track.title].filter(Boolean).join(' · ');
+  return `Track ${track.index + 1}${details ? ' · ' + details : ''}`;
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = document.querySelector('#submit');

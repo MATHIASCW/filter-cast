@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from media_commands import command_path, download_media, process_media, probe_media, separate_audio
 from media_config import MODES
-from media_service import choose_audio_stream, list_audio_tracks, media_files, output_path
+from media_service import audio_tracks, choose_audio_stream, list_audio_tracks, media_files, output_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,6 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--language")
     parser.add_argument("--title")
     parser.add_argument("--list-audio", action="store_true")
+    parser.add_argument("--probe", type=Path, metavar="FILE", help="print the audio tracks of FILE as JSON")
     parser.add_argument("--download", metavar="URL")
     parser.add_argument("--download-mode", choices=MODES, default="both")
     parser.add_argument(
@@ -49,7 +51,12 @@ def process_files(args: argparse.Namespace, ffmpeg: str, ffprobe: str, mode: str
             if mode in {"audio", "both"} and (args.audio_index is not None or args.language or args.title):
                 selected_index, selected_number = choose_audio_stream(streams, args.audio_index, args.language, args.title)
             has_video = any(s.get("codec_type") == "video" for s in streams)
-            process_media(source, output_path(source, args.output, mode, selected_number), mode, selected_index, ffmpeg, has_video)
+            destination = output_path(source, args.output, mode, selected_number)
+            process_media(source, destination, mode, selected_index, ffmpeg, has_video)
+            kinds = {s.get("codec_type") for s in probe_media(ffprobe, destination).get("streams", [])}
+            print(f"    result streams: {', '.join(sorted(kinds)) or 'none'}")
+            if mode in {"audio", "both"} and "audio" not in kinds:
+                raise RuntimeError("the result has no audio track")
         except (RuntimeError, ValueError) as error:
             had_error = True
             print(f"Error: {source.name}: {error}", file=sys.stderr)
@@ -58,6 +65,14 @@ def process_files(args: argparse.Namespace, ffmpeg: str, ffprobe: str, mode: str
 
 def main() -> int:
     args = parse_args()
+    if args.probe:
+        try:
+            streams = probe_media(command_path("ffprobe", args.ffmpeg_location), args.probe).get("streams", [])
+        except (RuntimeError, ValueError) as error:
+            print(f"Error: {error}", file=sys.stderr)
+            return 1
+        print(json.dumps(audio_tracks(streams)))
+        return 0
     if not args.input.is_dir():
         if args.download:
             args.input.mkdir(parents=True, exist_ok=True)

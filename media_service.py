@@ -21,6 +21,18 @@ def stream_label(stream: dict[str, Any], audio_number: int) -> str:
     return f"track {audio_number} | {language} | {title}"
 
 
+def audio_tracks(streams: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    audio_streams = [stream for stream in streams if stream.get("codec_type") == "audio"]
+    return [
+        {
+            "index": number,
+            "language": stream.get("tags", {}).get("language", ""),
+            "title": stream.get("tags", {}).get("title") or stream.get("tags", {}).get("handler_name", ""),
+        }
+        for number, stream in enumerate(audio_streams)
+    ]
+
+
 def choose_audio_stream(streams: list[dict[str, Any]], audio_index: int | None, language: str | None, title: str | None) -> tuple[int, int]:
     audio_streams = [stream for stream in streams if stream.get("codec_type") == "audio"]
     if not audio_streams:
