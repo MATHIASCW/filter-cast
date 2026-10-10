@@ -71,7 +71,7 @@ def download_media(
     ffmpeg_location: str | None = None,
 ) -> None:
     input_dir.mkdir(parents=True, exist_ok=True)
-    command = [yt_dlp, "--no-playlist", "-o", str(input_dir / "%(title)s.%(ext)s")]
+    command = [yt_dlp, "--no-playlist", "--force-overwrites", "-o", str(input_dir / "%(title)s.%(ext)s")]
     ffmpeg_location = ffmpeg_location or installed_ffmpeg_location()
     if ffmpeg_location:
         command += ["--ffmpeg-location", ffmpeg_location]

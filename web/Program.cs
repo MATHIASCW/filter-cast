@@ -9,6 +9,7 @@ var projectRoot = Directory.GetParent(app.Environment.ContentRootPath)?.FullName
 var inputDirectory = Path.Combine(projectRoot, "input");
 var outputDirectory = Path.Combine(projectRoot, "output");
 var scriptPath = Path.Combine(projectRoot, "filter_media.py");
+Directory.CreateDirectory(outputDirectory);
 
 if (!File.Exists(scriptPath))
 	throw new InvalidOperationException($"filter_media.py not found at: {scriptPath}");
@@ -21,8 +22,6 @@ app.MapPost("/api/process", async (HttpRequest request, CancellationToken cancel
 	var form = await request.ReadFormAsync(cancellationToken);
 	var mode = form["mode"].ToString();
 	var audioIndex = form["audioIndex"].ToString();
-	var language = form["language"].ToString();
-	var title = form["title"].ToString();
 	var separate = form["separate"].ToString();
 	var aiStem = form["aiStem"].ToString();
 	var device = form["device"].ToString();
@@ -36,35 +35,99 @@ app.MapPost("/api/process", async (HttpRequest request, CancellationToken cancel
 	if (!File.Exists(scriptPath))
 		return Results.Problem("filter_media.py was not found at the project root.");
 
-	Directory.CreateDirectory(inputDirectory);
-	Directory.CreateDirectory(outputDirectory);
-	if (upload is not null)
+	var separating = !string.IsNullOrWhiteSpace(separate);
+	var jobId = $"{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6]}";
+	var jobInput = Path.Combine(inputDirectory, jobId);
+	var jobOutput = Path.Combine(outputDirectory, jobId);
+	Directory.CreateDirectory(jobInput);
+	Directory.CreateDirectory(jobOutput);
+
+	try
 	{
-		var extension = Path.GetExtension(upload.FileName).ToLowerInvariant();
-		var safeName = $"upload_{Guid.NewGuid():N}{extension}";
-		await using var file = File.Create(Path.Combine(inputDirectory, safeName));
-		await upload.CopyToAsync(file, cancellationToken);
+		if (upload is not null)
+		{
+			var extension = Path.GetExtension(upload.FileName).ToLowerInvariant();
+			var safeName = $"upload_{Guid.NewGuid():N}{extension}";
+			await using var file = File.Create(Path.Combine(jobInput, safeName));
+			await upload.CopyToAsync(file, cancellationToken);
+		}
+
+		var arguments = new List<string> { scriptPath, "--input", jobInput, "--output", jobOutput };
+		if (!string.IsNullOrWhiteSpace(url))
+		{
+			var downloadMode = separating ? "audio" : mode is "audio" or "video" ? mode : "both";
+			arguments.AddRange(["--download", url, "--download-mode", downloadMode]);
+		}
+
+		if (separating)
+		{
+			var stem = aiStem == "all" ? "all" : "vocals";
+			arguments.AddRange(["--separate", stem, "--device", device is "cuda" or "cpu" ? device : "auto"]);
+		}
+		else
+		{
+			if (!string.IsNullOrWhiteSpace(mode)) arguments.AddRange(["--mode", mode]);
+			if (int.TryParse(audioIndex, out var index) && index >= 0) arguments.AddRange(["--audio-index", index.ToString()]);
+		}
+
+		var result = await RunPythonAsync(arguments, projectRoot, cancellationToken);
+		if (result.ExitCode == 0)
+			return Results.Ok(new { output = result.Output });
+
+		if (!Directory.EnumerateFileSystemEntries(jobOutput).Any())
+			TryDeleteDirectory(jobOutput);
+		return Results.BadRequest(new { error = result.Output });
 	}
+	finally
+	{
+		TryDeleteDirectory(jobInput);
+	}
+});
 
-	var arguments = new List<string> { scriptPath, "--input", inputDirectory, "--output", outputDirectory };
-	if (!string.IsNullOrWhiteSpace(url)) arguments.AddRange(["--download", url, "--download-mode", mode is "audio" or "video" ? mode : "both"]);
-	if (!string.IsNullOrWhiteSpace(mode)) arguments.AddRange(["--mode", mode]);
-	if (int.TryParse(audioIndex, out var index) && index >= 0) arguments.AddRange(["--audio-index", index.ToString()]);
-	if (!string.IsNullOrWhiteSpace(language)) arguments.AddRange(["--language", language]);
-	if (!string.IsNullOrWhiteSpace(title)) arguments.AddRange(["--title", title]);
-	if (!string.IsNullOrWhiteSpace(separate)) arguments.AddRange(["--separate", string.IsNullOrWhiteSpace(aiStem) ? "vocals" : aiStem, "--device", string.IsNullOrWhiteSpace(device) ? "auto" : device]);
+app.MapPost("/api/probe", async (HttpRequest request, CancellationToken cancellationToken) =>
+{
+	var form = await request.ReadFormAsync(cancellationToken);
+	var upload = form.Files.GetFile("media");
+	if (upload is null)
+		return Results.BadRequest(new { error = "Add a file." });
 
-	var result = await RunPythonAsync(arguments, projectRoot, cancellationToken);
-	return result.ExitCode == 0
-		? Results.Ok(new { output = result.Output })
-		: Results.BadRequest(new { error = result.Output });
+	var probeDirectory = Path.Combine(Path.GetTempPath(), $"filter-cast-probe-{Guid.NewGuid():N}");
+	Directory.CreateDirectory(probeDirectory);
+	try
+	{
+		var probePath = Path.Combine(probeDirectory, "probe" + Path.GetExtension(upload.FileName).ToLowerInvariant());
+		await using (var file = File.Create(probePath))
+			await upload.CopyToAsync(file, cancellationToken);
+
+		var result = await RunPythonAsync([scriptPath, "--probe", probePath], projectRoot, cancellationToken);
+		if (result.ExitCode != 0)
+			return Results.Content("[]", "application/json");
+		try
+		{
+			using var document = System.Text.Json.JsonDocument.Parse(result.Stdout);
+			return Results.Content(document.RootElement.GetRawText(), "application/json");
+		}
+		catch (System.Text.Json.JsonException)
+		{
+			return Results.Content("[]", "application/json");
+		}
+	}
+	finally
+	{
+		TryDeleteDirectory(probeDirectory);
+	}
 });
 
 app.MapGet("/api/results", () =>
 {
 	Directory.CreateDirectory(outputDirectory);
 	var files = Directory.GetFiles(outputDirectory, "*", SearchOption.AllDirectories)
-		.Select(path => new { name = Path.GetRelativePath(outputDirectory, path), url = "/results/" + Uri.EscapeDataString(Path.GetRelativePath(outputDirectory, path).Replace('\\', '/')) });
+		.OrderByDescending(path => File.GetLastWriteTimeUtc(path))
+		.Select(path =>
+		{
+			var relative = Path.GetRelativePath(outputDirectory, path).Replace('\\', '/');
+			return new { name = relative, url = "/results/" + string.Join('/', relative.Split('/').Select(part => Uri.EscapeDataString(part))) };
+		});
 	return Results.Ok(files);
 });
 
@@ -76,7 +139,7 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.Run("http://127.0.0.1:5080");
 
-static async Task<(int ExitCode, string Output)> RunPythonAsync(List<string> arguments, string workingDirectory, CancellationToken cancellationToken)
+static async Task<(int ExitCode, string Output, string Stdout)> RunPythonAsync(List<string> arguments, string workingDirectory, CancellationToken cancellationToken)
 {
 	var startInfo = new ProcessStartInfo("python")
 	{
@@ -98,7 +161,14 @@ static async Task<(int ExitCode, string Output)> RunPythonAsync(List<string> arg
 	var stdout = await outputTask;
 	var stderr = await errorTask;
 	var output = (stdout + stderr).Trim();
-	return (process.ExitCode, output);
+	return (process.ExitCode, output, stdout.Trim());
+}
+
+static void TryDeleteDirectory(string path)
+{
+	try { if (Directory.Exists(path)) Directory.Delete(path, true); }
+	catch (IOException) { }
+	catch (UnauthorizedAccessException) { }
 }
 
 public partial class Program { }

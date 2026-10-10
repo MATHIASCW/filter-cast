@@ -46,6 +46,14 @@ public class ProcessEndpointTests : IClassFixture<WebApplicationFactory<Program>
     }
 
     [Fact]
+    public async Task Probe_WithoutFile_ReturnsBadRequest()
+    {
+        var response = await _client.PostAsync("/api/probe", new MultipartFormDataContent());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Results_ReturnsOk()
     {
         var response = await _client.GetAsync("/api/results");

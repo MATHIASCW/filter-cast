@@ -18,9 +18,7 @@
 body {
   margin: 0;
   color: var(--ink);
-  background: 
-    radial-gradient(circle at 80% 0, #d7efb0 0, transparent 30%),
-    linear-gradient(135deg, #f4f1e9, #e8eee2);
+  background: var(--paper);
   font-family: 'Space Grotesk', sans-serif;
 }
 
@@ -372,4 +370,19 @@ select:focus {
   .dropzone {
     height: 180px;
   }
+}
+.stream-options {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.stream-options:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stream-options:disabled select {
+  cursor: not-allowed;
 }

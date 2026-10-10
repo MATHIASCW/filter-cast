@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from media_commands import command_path, download_options, separate_audio, stream_mapping
-from media_service import choose_audio_stream, media_files, output_path
+from media_service import audio_tracks, choose_audio_stream, media_files, output_path
 
 
 class MediaTests(unittest.TestCase):
@@ -53,6 +53,22 @@ class MediaTests(unittest.TestCase):
         ]
         self.assertEqual(choose_audio_stream(streams, None, "fr", None), (2, 0))
         self.assertEqual(choose_audio_stream(streams, None, None, "music"), (3, 1))
+
+    def test_audio_tracks_lists_only_audio_streams_with_their_number(self):
+        streams = [
+            {"index": 0, "codec_type": "video"},
+            {"index": 1, "codec_type": "audio", "tags": {"language": "fr", "title": "Voix"}},
+            {"index": 2, "codec_type": "audio", "tags": {"language": "en", "handler_name": "Music"}},
+            {"index": 3, "codec_type": "audio"},
+        ]
+        self.assertEqual(
+            audio_tracks(streams),
+            [
+                {"index": 0, "language": "fr", "title": "Voix"},
+                {"index": 1, "language": "en", "title": "Music"},
+                {"index": 2, "language": "", "title": ""},
+            ],
+        )
 
     def test_media_files_and_output_path(self):
         with tempfile.TemporaryDirectory() as directory:
